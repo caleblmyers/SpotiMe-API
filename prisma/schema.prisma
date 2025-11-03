@@ -1,0 +1,80 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  password        String?   // Optional for Spotify-only users
+  spotifyId       String?   @unique
+  displayName     String?
+  profileImageUrl String?
+  country         String?
+  // Spotify OAuth tokens
+  spotifyAccessToken    String?
+  spotifyRefreshToken   String?
+  spotifyTokenExpiresAt DateTime?
+  // JWT tokens (if needed for app authentication)
+  jwtAccessToken     String?
+  jwtRefreshToken     String?
+  jwtTokenExpiresAt   DateTime?
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  topArtists TopArtist[]
+  topTracks  TopTrack[]
+  playlists  Playlist[]
+  Snapshot   Snapshot[]
+}
+
+model TopArtist {
+  id         String   @id @default(cuid())
+  spotifyId  String
+  name       String
+  imageUrl   String?
+  genres     String[] // Stored as text[] in PostgreSQL
+  popularity Int?
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  fetchedAt  DateTime @default(now())
+}
+
+model TopTrack {
+  id         String   @id @default(cuid())
+  spotifyId  String
+  name       String
+  previewUrl String?
+  albumName  String?
+  albumArt   String?
+  artists    String[]
+  popularity Int?
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  fetchedAt  DateTime @default(now())
+}
+
+model Playlist {
+  id          String   @id @default(cuid())
+  spotifyId   String
+  name        String
+  description String?
+  imageUrl    String?
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  createdAt   DateTime @default(now())
+}
+
+model Snapshot {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String // 'tracks' or 'artists'
+  range     String // 'short_term', 'medium_term', 'long_term'
+  data      Json // store Spotify API result
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
