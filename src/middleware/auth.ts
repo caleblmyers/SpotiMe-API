@@ -1,32 +1,9 @@
-import { Request, Response, NextFunction } from "express";
-import { verifyToken } from "../utils/jwt";
+import { Request } from "express";
+import { getUserProfile } from "../lib/spotifyClient";
 
 export interface AuthenticatedRequest extends Request {
-  userId?: string;
+  spotifyId?: string;
   spotifyAccessToken?: string;
-}
-
-/**
- * Extract user ID from request headers (x-user-id or x-jwt-token)
- */
-export function extractUserId(req: Request): string | null {
-  const userIdHeader = req.headers["x-user-id"] as string;
-  if (userIdHeader) {
-    return userIdHeader;
-  }
-
-  const jwtHeader = req.headers["x-jwt-token"] as string;
-  if (jwtHeader) {
-    try {
-      const decoded = verifyToken(jwtHeader);
-      return decoded.userId;
-    } catch {
-      // JWT token invalid, return null
-      return null;
-    }
-  }
-
-  return null;
 }
 
 /**
@@ -38,5 +15,30 @@ export function extractSpotifyToken(req: Request): string | null {
     return null;
   }
   return authHeader.substring(7); // Remove "Bearer " prefix
+}
+
+/**
+ * Extract Spotify ID from access token
+ * This makes an API call to Spotify, so use sparingly
+ */
+export async function extractSpotifyId(accessToken: string): Promise<string | null> {
+  try {
+    const profile = await getUserProfile(accessToken);
+    return profile.id;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract user ID from request headers (optional - for backward compatibility)
+ * Since we're using Spotify-only auth, this might not be needed
+ */
+export function extractUserId(req: Request): string | null {
+  const userIdHeader = req.headers["x-user-id"] as string;
+  if (userIdHeader) {
+    return userIdHeader;
+  }
+  return null;
 }
 

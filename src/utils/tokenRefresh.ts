@@ -4,14 +4,13 @@ import { refreshSpotifyToken } from "./refreshToken";
 const SPOTIFY_TOKEN_EXPIRY_MS = 3600 * 1000; // 1 hour
 
 /**
- * Refresh Spotify token for a user and update database
+ * Refresh Spotify token for a user by spotifyId and update database
  */
-export async function refreshUserSpotifyToken(userId: string): Promise<string> {
+export async function refreshUserSpotifyToken(spotifyId: string): Promise<string> {
   const user = await prisma.user.findUnique({
-    where: { id: userId },
+    where: { spotifyId },
     select: {
       spotifyRefreshToken: true,
-      spotifyId: true,
     },
   });
 
@@ -36,7 +35,7 @@ export async function refreshUserSpotifyToken(userId: string): Promise<string> {
   // Update token in database
   const tokenExpiresAt = new Date(Date.now() + SPOTIFY_TOKEN_EXPIRY_MS);
   await prisma.user.update({
-    where: { id: userId },
+    where: { spotifyId },
     data: {
       spotifyAccessToken: newAccessToken,
       spotifyTokenExpiresAt: tokenExpiresAt,
@@ -48,9 +47,11 @@ export async function refreshUserSpotifyToken(userId: string): Promise<string> {
 
 /**
  * Attempt to refresh token if request fails with 401
+ * Requires spotifyId to be passed for token refresh
+ * If spotifyId is not provided, the frontend should handle refresh using /auth/refresh endpoint
  */
 export async function handleTokenRefresh<T>(
-  userId: string | null,
+  spotifyId: string | null,
   accessToken: string,
   requestFn: (token: string) => Promise<T>
 ): Promise<T> {
@@ -59,11 +60,11 @@ export async function handleTokenRefresh<T>(
   } catch (err: unknown) {
     const axiosError = err as { response?: { status?: number } };
     
-    // If 401 and we have userId, try to refresh token
-    if (axiosError.response?.status === 401 && userId) {
-      console.log("Spotify token expired, refreshing...");
+    // If 401 and we have spotifyId, try to refresh token from database
+    if (axiosError.response?.status === 401 && spotifyId) {
+      console.log("Spotify token expired, attempting refresh from database...");
       try {
-        const newAccessToken = await refreshUserSpotifyToken(userId);
+        const newAccessToken = await refreshUserSpotifyToken(spotifyId);
         // Retry the request with new token
         return await requestFn(newAccessToken);
       } catch (refreshErr) {
@@ -71,6 +72,7 @@ export async function handleTokenRefresh<T>(
         throw new Error("Spotify access token expired and refresh failed");
       }
     }
+    // If 401 but no spotifyId, let the error propagate - frontend should use /auth/refresh
     throw err;
   }
 }

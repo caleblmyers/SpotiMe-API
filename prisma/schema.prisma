@@ -9,20 +9,15 @@ generator client {
 
 model User {
   id              String    @id @default(cuid())
-  email           String    @unique
-  password        String?   // Optional for Spotify-only users
-  spotifyId       String?   @unique
+  spotifyId       String    @unique // Required - primary identifier
+  email           String?   // Optional - from Spotify profile
   displayName     String?
   profileImageUrl String?
   country         String?
-  // Spotify OAuth tokens
+  // Spotify OAuth tokens (stored in DB for backup, but frontend uses localStorage)
   spotifyAccessToken    String?
   spotifyRefreshToken   String?
   spotifyTokenExpiresAt DateTime?
-  // JWT tokens (if needed for app authentication)
-  jwtAccessToken     String?
-  jwtRefreshToken     String?
-  jwtTokenExpiresAt   DateTime?
   createdAt       DateTime  @default(now())
 
   // Relations

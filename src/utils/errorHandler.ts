@@ -13,7 +13,7 @@ export function handleSpotifyError(
   res: Response,
   err: unknown,
   defaultMessage: string,
-  userId: string | null = null
+  spotifyId: string | null = null
 ): void {
   const axiosError = err as AxiosError<{ error: { message: string } }>;
 
@@ -21,9 +21,9 @@ export function handleSpotifyError(
   if (axiosError.response?.status === 401) {
     res.status(401).json({
       error: "Spotify access token expired or invalid",
-      message: userId
-        ? "Token refresh failed. Please reconnect your Spotify account."
-        : "Please provide x-user-id header or x-jwt-token header for automatic token refresh, or reconnect your Spotify account",
+      message: spotifyId
+        ? "Token refresh failed. Please use /auth/refresh endpoint or reconnect your Spotify account."
+        : "Please use /auth/refresh endpoint to refresh your token, or reconnect your Spotify account",
     });
     return;
   }

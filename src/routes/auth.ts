@@ -1,8 +1,7 @@
 import { Router } from "express";
 import axios from "axios";
 import prisma from "../utils/prisma";
-import bcrypt from "bcryptjs";
-import { createAccessToken, createRefreshToken, verifyToken } from "../utils/jwt";
+import { getUserProfile } from "../lib/spotifyClient";
 
 const router = Router();
 
@@ -14,123 +13,55 @@ if (!clientId || !clientSecret || !redirectUri) {
   console.error("Missing required Spotify environment variables");
 }
 
+/**
+ * Get current user profile from Spotify token
+ */
 router.get("/me", async (req, res) => {
   try {
-    // Extract token from Authorization header
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "No token provided" });
+      return res.status(401).json({ error: "No Spotify access token provided" });
     }
 
-    const token = authHeader.substring(7); // Remove "Bearer " prefix
+    const accessToken = authHeader.substring(7);
 
-    // Verify token and extract userId
-    const decoded = verifyToken(token);
-    const userId = decoded.userId;
+    // Get user profile from Spotify
+    const spotifyProfile = await getUserProfile(accessToken);
 
-    // Find user by ID
+    // Find or get user from database
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { spotifyId: spotifyProfile.id },
     });
 
     if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(404).json({ error: "User not found. Please connect your Spotify account first." });
     }
 
-    res.json(user);
-  } catch (err: any) {
-    if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
-      return res.status(401).json({ error: "Invalid or expired token" });
+    res.json({
+      id: user.id,
+      spotifyId: user.spotifyId,
+      displayName: user.displayName,
+      profileImageUrl: user.profileImageUrl,
+      email: user.email,
+      country: user.country,
+    });
+  } catch (err: unknown) {
+    const axiosError = err as { response?: { status?: number } };
+    if (axiosError.response?.status === 401) {
+      return res.status(401).json({ error: "Invalid or expired Spotify token" });
     }
     console.error("Error in /me endpoint:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.post("/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    // Check if user exists and has password (not Spotify-only)
-    if (!user || !user.password) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
-
-    if (!(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
-
-    const accessToken = createAccessToken(user.id);
-    const refreshToken = createRefreshToken(user.id);
-    console.log("Login successful");
-    res.json({ accessToken, refreshToken, user });
-  } catch (err) {
-    console.error("Error in login endpoint:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-router.post("/signup", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
-    }
-
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      return res.status(409).json({ error: "User with this email already exists" });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        displayName: email,
-      },
-    });
-
-    console.log("Signup successful");
-    res.status(201).json(user);
-  } catch (err) {
-    console.error("Error in signup endpoint:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Step 1: get Spotify auth URL (frontend will navigate to it)
+/**
+ * Get Spotify OAuth authorization URL
+ */
 router.get("/login-spotify", async (req, res) => {
   try {
     if (!clientId || !redirectUri) {
       return res.status(500).json({ error: "Spotify OAuth not configured" });
-    }
-
-    const userId = req.query.id as string;
-
-    if (!userId) {
-      return res.status(400).json({ error: "userId is required" });
-    }
-
-    // Verify user exists
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
     }
 
     const scope = "user-top-read";
@@ -141,10 +72,8 @@ router.get("/login-spotify", async (req, res) => {
         client_id: clientId,
         scope,
         redirect_uri: redirectUri,
-        state: userId, // Pass userId through state parameter
       });
 
-    console.log("Navigating to Spotify auth URL");
     res.json({ url });
   } catch (err) {
     console.error("Error in login-spotify endpoint:", err);
@@ -152,52 +81,42 @@ router.get("/login-spotify", async (req, res) => {
   }
 });
 
-// Step 2: handle callback
+/**
+ * Handle Spotify OAuth callback
+ * Creates or updates user based on Spotify profile
+ * Returns tokens for frontend to store in localStorage
+ */
 router.get("/callback", async (req, res) => {
   const code = req.query.code as string;
-  const state = req.query.state as string; // userId from state parameter
   const error = req.query.error as string;
 
   // Handle Spotify OAuth errors
   if (error) {
     console.error("Spotify OAuth error:", error);
     return res.redirect(
-      `${
-        process.env.FRONTEND_URL || "http://localhost:5173"
-      }/dashboard?spotify_error=${error}`
+      `${process.env.FRONTEND_URL || "http://localhost:5173"}/login?error=${error}`
     );
   }
 
-  if (!code || !state) {
+  if (!code) {
     return res.redirect(
-      `${
-        process.env.FRONTEND_URL || "http://localhost:5173"
-      }/dashboard?spotify_error=missing_code_or_state`
+      `${process.env.FRONTEND_URL || "http://localhost:5173"}/login?error=missing_code`
     );
   }
 
   try {
-    // Verify user exists
-    const user = await prisma.user.findUnique({
-      where: { id: state },
-    });
-
-    if (!user) {
-      return res.redirect(
-        `${
-          process.env.FRONTEND_URL || "http://localhost:5173"
-        }/dashboard?spotify_error=user_not_found`
-      );
-    }
-
     if (!clientId || !clientSecret || !redirectUri) {
       return res.redirect(
-        `${process.env.FRONTEND_URL || "http://localhost:5173"}/dashboard?spotify_error=oauth_not_configured`
+        `${process.env.FRONTEND_URL || "http://localhost:5173"}/login?error=oauth_not_configured`
       );
     }
 
     // Exchange code for tokens
-    const tokenRes = await axios.post(
+    const tokenRes = await axios.post<{
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+    }>(
       "https://accounts.spotify.com/api/token",
       new URLSearchParams({
         grant_type: "authorization_code",
@@ -217,41 +136,134 @@ router.get("/callback", async (req, res) => {
     const { access_token, refresh_token, expires_in } = tokenRes.data;
 
     // Get Spotify user info
-    const meRes = await axios.get("https://api.spotify.com/v1/me", {
-      headers: { Authorization: `Bearer ${access_token}` },
-    });
+    const spotifyProfile = await getUserProfile(access_token);
 
-    const spotifyId = meRes.data.id;
-    const displayName = meRes.data.display_name;
+    const spotifyId = spotifyProfile.id;
+    const displayName = spotifyProfile.display_name;
+    const email = spotifyProfile.email;
+    const profileImageUrl = spotifyProfile.images?.[0]?.url;
+    const country = spotifyProfile.country;
     const tokenExpiresAt = new Date(Date.now() + expires_in * 1000);
 
-    // Update existing user with Spotify token info
-    await prisma.user.update({
-      where: { id: state },
-      data: {
-        spotifyId,
+    // Find or create user based on Spotify ID
+    const user = await prisma.user.upsert({
+      where: { spotifyId },
+      update: {
         spotifyAccessToken: access_token,
         spotifyRefreshToken: refresh_token,
         spotifyTokenExpiresAt: tokenExpiresAt,
-        displayName: displayName || user.displayName,
-        profileImageUrl: meRes.data.images?.[0]?.url || user.profileImageUrl,
+        displayName: displayName || undefined,
+        profileImageUrl: profileImageUrl || undefined,
+        email: email || undefined,
+        country: country || undefined,
+      },
+      create: {
+        spotifyId,
+        email: email || undefined,
+        displayName: displayName || undefined,
+        profileImageUrl: profileImageUrl || undefined,
+        country: country || undefined,
+        spotifyAccessToken: access_token,
+        spotifyRefreshToken: refresh_token,
+        spotifyTokenExpiresAt: tokenExpiresAt,
       },
     });
-    console.log("Spotify connected successfully");
-    // Redirect to frontend with success
-    res.redirect(
-      `${
-        process.env.FRONTEND_URL || "http://localhost:5173"
-      }/dashboard?spotify_connected=true`
-    );
-  } catch (err: any) {
+
+    console.log("Spotify authentication successful");
+
+    // Redirect to frontend with tokens in URL hash (for localStorage)
+    // Frontend will extract these and store in localStorage, then redirect to dashboard
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const tokens = {
+      access_token,
+      refresh_token,
+      expires_in,
+      user: {
+        id: user.id,
+        spotifyId: user.spotifyId,
+        displayName: user.displayName,
+        profileImageUrl: user.profileImageUrl,
+      },
+    };
+
+    // Encode tokens as base64 for URL (or use query params)
+    const tokensParam = Buffer.from(JSON.stringify(tokens)).toString("base64");
+    res.redirect(`${frontendUrl}/auth/callback?tokens=${encodeURIComponent(tokensParam)}`);
+  } catch (err: unknown) {
     console.error("Error in Spotify callback:", err);
-    const errorMessage = err.response?.data?.error || "unknown_error";
+    const axiosError = err as { response?: { data?: { error?: string } } };
+    const errorMessage = axiosError.response?.data?.error || "unknown_error";
     res.redirect(
-      `${
-        process.env.FRONTEND_URL || "http://localhost:5173"
-      }/dashboard?spotify_error=${errorMessage}`
+      `${process.env.FRONTEND_URL || "http://localhost:5173"}/login?error=${errorMessage}`
     );
+  }
+});
+
+/**
+ * Refresh Spotify access token
+ * Frontend can call this with refresh_token from localStorage
+ */
+router.post("/refresh", async (req, res) => {
+  try {
+    const { refresh_token } = req.body;
+
+    if (!refresh_token) {
+      return res.status(400).json({ error: "Refresh token is required" });
+    }
+
+    if (!clientId || !clientSecret) {
+      return res.status(500).json({ error: "Spotify OAuth not configured" });
+    }
+
+    const tokenRes = await axios.post<{
+      access_token: string;
+      expires_in: number;
+    }>(
+      "https://accounts.spotify.com/api/token",
+      new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token,
+      }),
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(
+            `${clientId}:${clientSecret}`
+          ).toString("base64")}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
+
+    const { access_token, expires_in } = tokenRes.data;
+
+    // Update user's token in database if we can find them
+    try {
+      const spotifyProfile = await getUserProfile(access_token);
+      await prisma.user.updateMany({
+        where: { spotifyId: spotifyProfile.id },
+        data: {
+          spotifyAccessToken: access_token,
+          spotifyTokenExpiresAt: new Date(Date.now() + expires_in * 1000),
+        },
+      });
+    } catch {
+      // If user lookup fails, still return the token (frontend has it)
+    }
+
+    res.json({
+      access_token,
+      expires_in,
+    });
+  } catch (err: unknown) {
+    console.error("Error refreshing token:", err);
+    const axiosError = err as { response?: { status?: number; data?: { error?: string } } };
+    if (axiosError.response?.status === 400) {
+      return res.status(401).json({
+        error: "Invalid refresh token",
+        message: "Please reconnect your Spotify account",
+      });
+    }
+    res.status(500).json({ error: "Failed to refresh token" });
   }
 });
 
