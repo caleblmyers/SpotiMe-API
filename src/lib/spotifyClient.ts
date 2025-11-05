@@ -1,12 +1,28 @@
-import axios from "axios";
-import { TimeRange, SpotifyTrack, SpotifyArtist } from "../types/spotify";
+import { getSpotifyData } from "../utils/getSpotifyData";
+import {
+  TimeRange,
+  SpotifyUserResponse,
+  SpotifyTrackResponse,
+  SpotifyArtistResponse,
+  SpotifyAlbumsResponse,
+  SpotifyGenresResponse,
+} from "../types/spotify";
 
 interface SpotifyTopTracksResponse {
-  items: SpotifyTrack[];
+  items: SpotifyTrackResponse[];
 }
 
 interface SpotifyTopArtistsResponse {
-  items: SpotifyArtist[];
+  items: SpotifyArtistResponse[];
+}
+
+export async function getUserProfile(
+  accessToken: string
+): Promise<SpotifyUserResponse> {
+  return getSpotifyData<SpotifyUserResponse>(
+    accessToken,
+    "https://api.spotify.com/v1/me"
+  );
 }
 
 export async function getTopTracks(
@@ -14,15 +30,13 @@ export async function getTopTracks(
   timeRange: TimeRange = "short_term",
   limit = 20,
   offset = 0
-): Promise<SpotifyTrack[]> {
-  const res = await axios.get<SpotifyTopTracksResponse>(
+): Promise<SpotifyTrackResponse[]> {
+  const response = await getSpotifyData<SpotifyTopTracksResponse>(
+    accessToken,
     "https://api.spotify.com/v1/me/top/tracks",
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      params: { limit, time_range: timeRange, offset },
-    }
+    { limit, time_range: timeRange, offset }
   );
-  return res.data.items;
+  return response.items;
 }
 
 export async function getTopArtists(
@@ -30,21 +44,32 @@ export async function getTopArtists(
   timeRange: TimeRange = "short_term",
   limit = 20,
   offset = 0
-): Promise<SpotifyArtist[]> {
-  const res = await axios.get<SpotifyTopArtistsResponse>(
+): Promise<SpotifyArtistResponse[]> {
+  const response = await getSpotifyData<SpotifyTopArtistsResponse>(
+    accessToken,
     "https://api.spotify.com/v1/me/top/artists",
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      params: { limit, time_range: timeRange, offset },
-    }
+    { limit, time_range: timeRange, offset }
   );
-  return res.data.items;
+  return response.items;
 }
 
-export async function getUserProfile(accessToken: string) {
-  const res = await axios.get("https://api.spotify.com/v1/me", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  return res.data;
+export async function getAlbums(
+  accessToken: string,
+  ids: string[]
+): Promise<SpotifyAlbumsResponse> {
+  return getSpotifyData<SpotifyAlbumsResponse>(
+    accessToken,
+    "https://api.spotify.com/v1/albums",
+    { ids: ids.join(",") }
+  );
+}
+
+export async function getGenres(
+  accessToken: string
+): Promise<SpotifyGenresResponse> {
+  return getSpotifyData<SpotifyGenresResponse>(
+    accessToken,
+    "https://api.spotify.com/v1/recommendations/available-genre-seeds"
+  );
 }
 

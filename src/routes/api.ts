@@ -1,21 +1,34 @@
 import { Router } from "express";
-import { getTopTracks, getTopArtists, getUserProfile } from "../lib/spotifyClient";
+import {
+  getUserProfile,
+  getTopTracks,
+  getTopArtists,
+  getAlbums,
+  getGenres,
+} from "../lib/spotifyClient";
 import { extractSpotifyToken } from "../middleware/auth";
 import { validateSpotifyQueryParams } from "../utils/validation";
 import { handleSpotifyError } from "../utils/errorHandler";
 import { handleTokenRefresh } from "../utils/tokenRefresh";
-import { SpotifyTrack, SpotifyArtist } from "../types/spotify";
+import {
+  SpotifyUser,
+  SpotifyTrack,
+  SpotifyArtist,
+  SpotifyAlbum,
+} from "../types/spotify";
 import prisma from "../utils/prisma";
 
 const router = Router();
 
-// Get current user profile from Spotify and update database if needed
+// Get current user profile from Spotify
 router.get("/me", async (req, res) => {
   try {
     const accessToken = extractSpotifyToken(req);
 
     if (!accessToken) {
-      return res.status(401).json({ error: "No Spotify access token provided" });
+      return res
+        .status(401)
+        .json({ error: "No Spotify access token provided" });
     }
 
     // Optional spotifyId from header (for token refresh)
@@ -28,71 +41,57 @@ router.get("/me", async (req, res) => {
       (token) => getUserProfile(token)
     );
 
-    const spotifyIdFromProfile = spotifyProfile.id;
-    const displayName = spotifyProfile.display_name || null;
-    const email = spotifyProfile.email || null;
-    const profileImageUrl = spotifyProfile.images?.[0]?.url || null;
-    const country = spotifyProfile.country || null;
+    // Return only specified fields
+    const user: SpotifyUser = {
+      id: spotifyProfile.id,
+      display_name: spotifyProfile.display_name || "",
+      email: spotifyProfile.email || "",
+      external_urls: spotifyProfile.external_urls || { spotify: "" },
+      followers: spotifyProfile.followers || { total: 0 },
+      images: spotifyProfile.images || [],
+    };
 
-    // Find existing user or create new one
-    const existingUser = await prisma.user.findUnique({
-      where: { spotifyId: spotifyIdFromProfile },
-    });
-
-    // Check if any fields have changed
-    const hasChanges =
-      !existingUser ||
-      existingUser.displayName !== displayName ||
-      existingUser.email !== email ||
-      existingUser.profileImageUrl !== profileImageUrl ||
-      existingUser.country !== country;
-
-    // Update user if changes detected
-    const user = hasChanges
-      ? await prisma.user.upsert({
-          where: { spotifyId: spotifyIdFromProfile },
+    // Update database if user exists
+    try {
+      if (spotifyProfile.id) {
+        await prisma.user.upsert({
+          where: { spotifyId: spotifyProfile.id },
           update: {
-            displayName: displayName || undefined,
-            email: email || undefined,
-            profileImageUrl: profileImageUrl || undefined,
-            country: country || undefined,
+            displayName: user.display_name || undefined,
+            email: user.email || undefined,
+            profileImageUrl: user.images?.[0]?.url || undefined,
           },
           create: {
-            spotifyId: spotifyIdFromProfile,
-            displayName: displayName || undefined,
-            email: email || undefined,
-            profileImageUrl: profileImageUrl || undefined,
-            country: country || undefined,
+            spotifyId: spotifyProfile.id,
+            displayName: user.display_name || undefined,
+            email: user.email || undefined,
+            profileImageUrl: user.images?.[0]?.url || undefined,
           },
-        })
-      : existingUser;
-
-    if (!user) {
-      return res.status(500).json({ error: "Failed to create or update user" });
+        });
+      }
+    } catch (dbError) {
+      // Log but don't fail the request if DB update fails
+      console.error("Error updating user in database:", dbError);
     }
 
-    res.json({
-      id: user.id,
-      spotifyId: user.spotifyId,
-      displayName: user.displayName,
-      profileImageUrl: user.profileImageUrl,
-      email: user.email,
-      country: user.country,
-      updated: hasChanges,
-    });
+    res.json(user);
   } catch (err) {
-    if (err instanceof Error && err.message === "Spotify access token expired and refresh failed") {
+    if (
+      err instanceof Error &&
+      err.message === "Spotify access token expired and refresh failed"
+    ) {
       return res.status(401).json({
         error: err.message,
         message: "Please reconnect your Spotify account",
       });
     }
-    const axiosError = err as { response?: { status?: number } };
-    if (axiosError.response?.status === 401) {
-      return res.status(401).json({ error: "Invalid or expired Spotify token" });
+    if (err instanceof Error && err.message.includes("Unauthorized")) {
+      return res
+        .status(401)
+        .json({ error: "Invalid or expired Spotify token" });
     }
     console.error("Error in /api/me endpoint:", err);
-    handleSpotifyError(res, err, "Failed to fetch user profile", null);
+    res.status(500).json({ error: "Failed to fetch user profile" });
   }
 });
 
@@ -102,7 +101,9 @@ router.get("/top-tracks", async (req, res) => {
     const accessToken = extractSpotifyToken(req);
 
     if (!accessToken) {
-      return res.status(401).json({ error: "No Spotify access token provided" });
+      return res
+        .status(401)
+        .json({ error: "No Spotify access token provided" });
     }
 
     // Validate query parameters
@@ -128,27 +129,36 @@ router.get("/top-tracks", async (req, res) => {
       (token) => getTopTracks(token, timeRange, limit, offset)
     );
 
-    // Transform data to clean JSON response
-    const transformedTracks = (tracks as SpotifyTrack[]).map((track) => ({
+    // Return only specified fields
+    const transformedTracks: SpotifyTrack[] = tracks.map((track) => ({
+      album: track.album,
+      artists: track.artists,
+      duration_ms: track.duration_ms,
+      external_urls: track.external_urls,
       id: track.id,
       name: track.name,
-      album: {
-        id: track.album?.id || null,
-        name: track.album?.name || null,
-        images: track.album?.images || [],
-      },
-      duration: track.duration_ms || null,
+      popularity: track.popularity,
+      track_number: track.track_number,
     }));
 
     res.json(transformedTracks);
   } catch (err) {
-    if (err instanceof Error && err.message === "Spotify access token expired and refresh failed") {
+    if (
+      err instanceof Error &&
+      err.message === "Spotify access token expired and refresh failed"
+    ) {
       return res.status(401).json({
         error: err.message,
         message: "Please reconnect your Spotify account",
       });
     }
-    handleSpotifyError(res, err, "Failed to fetch top tracks", null);
+    if (err instanceof Error && err.message.includes("Unauthorized")) {
+      return res
+        .status(401)
+        .json({ error: "Invalid or expired Spotify token" });
+    }
+    console.error("Error in /api/top-tracks endpoint:", err);
+    res.status(500).json({ error: "Failed to fetch top tracks" });
   }
 });
 
@@ -158,7 +168,9 @@ router.get("/top-artists", async (req, res) => {
     const accessToken = extractSpotifyToken(req);
 
     if (!accessToken) {
-      return res.status(401).json({ error: "No Spotify access token provided" });
+      return res
+        .status(401)
+        .json({ error: "No Spotify access token provided" });
     }
 
     // Validate query parameters
@@ -184,26 +196,160 @@ router.get("/top-artists", async (req, res) => {
       (token) => getTopArtists(token, timeRange, limit, offset)
     );
 
-    // Transform data to clean JSON response
-    const transformedArtists = (artists as SpotifyArtist[]).map((artist) => ({
+    // Return only specified fields
+    const transformedArtists: SpotifyArtist[] = artists.map((artist) => ({
+      external_urls: artist.external_urls,
+      genres: artist.genres,
       id: artist.id,
+      images: artist.images,
       name: artist.name,
-      imageUrl: artist.images?.[0]?.url || null,
-      genres: artist.genres || [],
-      popularity: artist.popularity || null,
+      popularity: artist.popularity,
+      followers: artist.followers,
     }));
 
     res.json(transformedArtists);
   } catch (err) {
-    if (err instanceof Error && err.message === "Spotify access token expired and refresh failed") {
+    if (
+      err instanceof Error &&
+      err.message === "Spotify access token expired and refresh failed"
+    ) {
       return res.status(401).json({
         error: err.message,
         message: "Please reconnect your Spotify account",
       });
     }
-    handleSpotifyError(res, err, "Failed to fetch top artists", null);
+    if (err instanceof Error && err.message.includes("Unauthorized")) {
+      return res
+        .status(401)
+        .json({ error: "Invalid or expired Spotify token" });
+    }
+    console.error("Error in /api/top-artists endpoint:", err);
+    res.status(500).json({ error: "Failed to fetch top artists" });
+  }
+});
+
+// Get albums by IDs
+router.get("/albums", async (req, res) => {
+  try {
+    const accessToken = extractSpotifyToken(req);
+
+    if (!accessToken) {
+      return res
+        .status(401)
+        .json({ error: "No Spotify access token provided" });
+    }
+
+    const ids = req.query.ids as string;
+
+    if (!ids) {
+      return res.status(400).json({ error: "ids query parameter is required" });
+    }
+
+    // Split comma-separated IDs and validate
+    const albumIds = ids
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+
+    if (albumIds.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "At least one album ID is required" });
+    }
+
+    if (albumIds.length > 20) {
+      return res.status(400).json({ error: "Maximum 20 album IDs allowed" });
+    }
+
+    // Optional spotifyId from header (for token refresh)
+    const spotifyId = req.headers["x-spotify-id"] as string | undefined;
+
+    // Fetch albums with automatic token refresh
+    const albumsResponse = await handleTokenRefresh(
+      spotifyId || null,
+      accessToken,
+      (token) => getAlbums(token, albumIds)
+    );
+
+    // Return only specified fields for each album
+    const transformedAlbums: SpotifyAlbum[] = albumsResponse.albums.map(
+      (album) => ({
+        album_type: album.album_type,
+        total_tracks: album.total_tracks,
+        external_urls: album.external_urls,
+        id: album.id,
+        images: album.images,
+        name: album.name,
+        release_date: album.release_date,
+        artists: album.artists,
+        tracks: album.tracks,
+        genres: album.genres,
+        label: album.label,
+        popularity: album.popularity,
+      })
+    );
+
+    res.json(transformedAlbums);
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      err.message === "Spotify access token expired and refresh failed"
+    ) {
+      return res.status(401).json({
+        error: err.message,
+        message: "Please reconnect your Spotify account",
+      });
+    }
+    if (err instanceof Error && err.message.includes("Unauthorized")) {
+      return res
+        .status(401)
+        .json({ error: "Invalid or expired Spotify token" });
+    }
+    console.error("Error in /api/albums endpoint:", err);
+    res.status(500).json({ error: "Failed to fetch albums" });
+  }
+});
+
+// Get available genres
+router.get("/genres", async (req, res) => {
+  try {
+    const accessToken = extractSpotifyToken(req);
+
+    if (!accessToken) {
+      return res
+        .status(401)
+        .json({ error: "No Spotify access token provided" });
+    }
+
+    // Optional spotifyId from header (for token refresh)
+    const spotifyId = req.headers["x-spotify-id"] as string | undefined;
+
+    // Fetch genres with automatic token refresh
+    const genresResponse = await handleTokenRefresh(
+      spotifyId || null,
+      accessToken,
+      (token) => getGenres(token)
+    );
+
+    res.json(genresResponse.genres);
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      err.message === "Spotify access token expired and refresh failed"
+    ) {
+      return res.status(401).json({
+        error: err.message,
+        message: "Please reconnect your Spotify account",
+      });
+    }
+    if (err instanceof Error && err.message.includes("Unauthorized")) {
+      return res
+        .status(401)
+        .json({ error: "Invalid or expired Spotify token" });
+    }
+    console.error("Error in /api/genres endpoint:", err);
+    res.status(500).json({ error: "Failed to fetch genres" });
   }
 });
 
 export default router;
-
