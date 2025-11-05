@@ -6,9 +6,13 @@ import { createAccessToken, createRefreshToken, verifyToken } from "../utils/jwt
 
 const router = Router();
 
-const clientId = process.env.SPOTIFY_CLIENT_ID!;
-const clientSecret = process.env.SPOTIFY_CLIENT_SECRET!;
-const redirectUri = process.env.SPOTIFY_REDIRECT_URI!;
+const clientId = process.env.SPOTIFY_CLIENT_ID;
+const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+const redirectUri = process.env.SPOTIFY_REDIRECT_URI;
+
+if (!clientId || !clientSecret || !redirectUri) {
+  console.error("Missing required Spotify environment variables");
+}
 
 router.get("/me", async (req, res) => {
   try {
@@ -44,50 +48,84 @@ router.get("/me", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  const user = await prisma.user.findUnique({
-    where: { email },
-  });
+  try {
+    const { email, password } = req.body;
 
-  // Check if user exists and has password (not Spotify-only)
-  if (!user || !user.password) {
-    return res.status(401).json({ error: "Invalid credentials" });
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    // Check if user exists and has password (not Spotify-only)
+    if (!user || !user.password) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    if (!(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const accessToken = createAccessToken(user.id);
+    const refreshToken = createRefreshToken(user.id);
+    console.log("Login successful");
+    res.json({ accessToken, refreshToken, user });
+  } catch (err) {
+    console.error("Error in login endpoint:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
-
-  if (!(await bcrypt.compare(password, user.password))) {
-    return res.status(401).json({ error: "Invalid credentials" });
-  }
-
-  const accessToken = createAccessToken(user.id);
-  const refreshToken = createRefreshToken(user.id);
-  console.log("Login successful");
-  res.json({ accessToken, refreshToken, user });
 });
 
 router.post("/signup", async (req, res) => {
-  const hashedPassword = await bcrypt.hash(req.body.password, 10);
+  try {
+    const { email, password } = req.body;
 
-  const user = await prisma.user.create({
-    data: {
-      email: req.body.email,
-      password: hashedPassword,
-      displayName: req.body.email,
-    },
-  });
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
 
-  console.log("Signup successful");
-  res.json(user);
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({ error: "User with this email already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        displayName: email,
+      },
+    });
+
+    console.log("Signup successful");
+    res.status(201).json(user);
+  } catch (err) {
+    console.error("Error in signup endpoint:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // Step 1: get Spotify auth URL (frontend will navigate to it)
 router.get("/login-spotify", async (req, res) => {
-  const userId = req.query.id as string;
-
-  if (!userId) {
-    return res.status(400).json({ error: "userId is required" });
-  }
-
   try {
+    if (!clientId || !redirectUri) {
+      return res.status(500).json({ error: "Spotify OAuth not configured" });
+    }
+
+    const userId = req.query.id as string;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
     // Verify user exists
     const user = await prisma.user.findUnique({ where: { id: userId } });
 
@@ -105,13 +143,11 @@ router.get("/login-spotify", async (req, res) => {
         redirect_uri: redirectUri,
         state: userId, // Pass userId through state parameter
       });
-    
-    // Return URL as JSON instead of redirecting
-    // Frontend should navigate to this URL: window.location.href = response.url\
-    console.log('navigating to spotify auth url')
+
+    console.log("Navigating to Spotify auth URL");
     res.json({ url });
   } catch (err) {
-    console.error(err);
+    console.error("Error in login-spotify endpoint:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -154,6 +190,12 @@ router.get("/callback", async (req, res) => {
       );
     }
 
+    if (!clientId || !clientSecret || !redirectUri) {
+      return res.redirect(
+        `${process.env.FRONTEND_URL || "http://localhost:5173"}/dashboard?spotify_error=oauth_not_configured`
+      );
+    }
+
     // Exchange code for tokens
     const tokenRes = await axios.post(
       "https://accounts.spotify.com/api/token",
@@ -165,7 +207,7 @@ router.get("/callback", async (req, res) => {
       {
         headers: {
           Authorization: `Basic ${Buffer.from(
-            clientId + ":" + clientSecret
+            `${clientId}:${clientSecret}`
           ).toString("base64")}`,
           "Content-Type": "application/x-www-form-urlencoded",
         },
@@ -195,9 +237,13 @@ router.get("/callback", async (req, res) => {
         profileImageUrl: meRes.data.images?.[0]?.url || user.profileImageUrl,
       },
     });
-    // Redirect to frontend with success
     console.log("Spotify connected successfully");
-    res.json({ message: "Spotify connected successfully" });
+    // Redirect to frontend with success
+    res.redirect(
+      `${
+        process.env.FRONTEND_URL || "http://localhost:5173"
+      }/dashboard?spotify_connected=true`
+    );
   } catch (err: any) {
     console.error("Error in Spotify callback:", err);
     const errorMessage = err.response?.data?.error || "unknown_error";
