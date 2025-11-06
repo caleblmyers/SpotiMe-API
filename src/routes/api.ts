@@ -4,6 +4,8 @@ import albumsRoutes from "./api/albums";
 import tracksRoutes from "./api/tracks";
 import artistsRoutes from "./api/artists";
 import genresRoutes from "./api/genres";
+import recommendationsRoutes from "./api/recommendations";
+import recentlyPlayedRoutes from "./api/recently-played";
 
 const router = Router();
 
@@ -13,5 +15,7 @@ router.use("/", albumsRoutes);
 router.use("/", tracksRoutes);
 router.use("/", artistsRoutes);
 router.use("/", genresRoutes);
+router.use("/", recommendationsRoutes);
+router.use("/", recentlyPlayedRoutes);
 
 export default router;

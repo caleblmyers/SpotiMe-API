@@ -12,3 +12,8 @@ export const SPOTIFY_OFFSET_MIN = 0;
 
 export const SPOTIFY_TOKEN_EXPIRY_MS = 3600 * 1000; // 1 hour
 
+// Recommendations API limits
+export const RECOMMENDATIONS_LIMIT_MIN = 1;
+export const RECOMMENDATIONS_LIMIT_MAX = 100;
+export const RECOMMENDATIONS_SEED_MAX = 5; // Max seeds per type (artists, genres, tracks)
+

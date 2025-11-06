@@ -132,6 +132,42 @@ export interface SpotifyAudioFeaturesResponseArray {
   audio_features: (SpotifyAudioFeaturesResponse | null)[];
 }
 
+export interface SpotifyRecommendationsSeed {
+  afterFilteringSize: number;
+  afterRelinkingSize: number;
+  href: string | null;
+  id: string;
+  initialPoolSize: number;
+  type: "artist" | "track" | "genre";
+}
+
+export interface SpotifyRecommendationsResponse {
+  seeds: SpotifyRecommendationsSeed[];
+  tracks: SpotifyTrackResponse[];
+}
+
+export interface SpotifyPlayHistoryItem {
+  track: SpotifyTrackResponse;
+  played_at: string; // ISO 8601 timestamp
+  context: {
+    type: string;
+    href: string | null;
+    external_urls: {
+      spotify: string;
+    } | null;
+    uri: string;
+  } | null;
+}
+
+export interface SpotifyRecentlyPlayedResponse {
+  items: SpotifyPlayHistoryItem[];
+  next: string | null;
+  cursors: {
+    after: string | null;
+    before: string | null;
+  } | null;
+}
+
 // Clean response types (what we return to client)
 export interface SpotifyUser {
   id: string;
@@ -234,5 +270,18 @@ export interface SpotifyAlbum {
   genres: string[];
   label: string;
   popularity: number;
+}
+
+export interface SpotifyPlayHistory {
+  track: SpotifyTrack;
+  played_at: string;
+  context: {
+    type: string;
+    href: string | null;
+    external_urls: {
+      spotify: string;
+    } | null;
+    uri: string;
+  } | null;
 }
 

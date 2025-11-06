@@ -10,7 +10,11 @@ import {
   SpotifyGenresResponse,
   SpotifyAudioFeaturesResponse,
   SpotifyAudioFeaturesResponseArray,
+  SpotifyRecommendationsResponse,
+  SpotifyRecentlyPlayedResponse,
 } from "../types/spotify";
+import { RecommendationsParams } from "../utils/recommendationsValidation";
+import { RecentlyPlayedParams } from "../utils/recentlyPlayedValidation";
 
 interface SpotifyTopTracksResponse {
   items: SpotifyTrackResponse[];
@@ -117,6 +121,112 @@ export async function getAudioFeaturesMultiple(
     accessToken,
     "https://api.spotify.com/v1/audio-features",
     { ids: trackIds.join(",") }
+  );
+}
+
+export async function getRecommendations(
+  accessToken: string,
+  params: RecommendationsParams
+): Promise<SpotifyRecommendationsResponse> {
+  // Build query parameters
+  const queryParams: Record<string, string | number> = {};
+
+  if (params.seed_artists) {
+    queryParams.seed_artists = params.seed_artists.join(",");
+  }
+  if (params.seed_genres) {
+    queryParams.seed_genres = params.seed_genres.join(",");
+  }
+  if (params.seed_tracks) {
+    queryParams.seed_tracks = params.seed_tracks.join(",");
+  }
+  if (params.limit !== undefined) {
+    queryParams.limit = params.limit;
+  }
+  if (params.market) {
+    queryParams.market = params.market;
+  }
+
+  // Add all tuneable attributes
+  const tuneableKeys = [
+    "min_acousticness",
+    "max_acousticness",
+    "target_acousticness",
+    "min_danceability",
+    "max_danceability",
+    "target_danceability",
+    "min_duration_ms",
+    "max_duration_ms",
+    "target_duration_ms",
+    "min_energy",
+    "max_energy",
+    "target_energy",
+    "min_instrumentalness",
+    "max_instrumentalness",
+    "target_instrumentalness",
+    "min_key",
+    "max_key",
+    "target_key",
+    "min_liveness",
+    "max_liveness",
+    "target_liveness",
+    "min_loudness",
+    "max_loudness",
+    "target_loudness",
+    "min_mode",
+    "max_mode",
+    "target_mode",
+    "min_popularity",
+    "max_popularity",
+    "target_popularity",
+    "min_speechiness",
+    "max_speechiness",
+    "target_speechiness",
+    "min_tempo",
+    "max_tempo",
+    "target_tempo",
+    "min_time_signature",
+    "max_time_signature",
+    "target_time_signature",
+    "min_valence",
+    "max_valence",
+    "target_valence",
+  ];
+
+  for (const key of tuneableKeys) {
+    const value = (params as Record<string, number | undefined>)[key];
+    if (value !== undefined) {
+      queryParams[key] = value;
+    }
+  }
+
+  return getSpotifyData<SpotifyRecommendationsResponse>(
+    accessToken,
+    "https://api.spotify.com/v1/recommendations",
+    queryParams
+  );
+}
+
+export async function getRecentlyPlayed(
+  accessToken: string,
+  params?: RecentlyPlayedParams
+): Promise<SpotifyRecentlyPlayedResponse> {
+  const queryParams: Record<string, string | number> = {};
+
+  if (params?.limit !== undefined) {
+    queryParams.limit = params.limit;
+  }
+  if (params?.after !== undefined) {
+    queryParams.after = params.after;
+  }
+  if (params?.before !== undefined) {
+    queryParams.before = params.before;
+  }
+
+  return getSpotifyData<SpotifyRecentlyPlayedResponse>(
+    accessToken,
+    "https://api.spotify.com/v1/me/player/recently-played",
+    Object.keys(queryParams).length > 0 ? queryParams : undefined
   );
 }
 
