@@ -8,8 +8,8 @@ import {
 } from "../lib/spotifyClient";
 import { extractSpotifyToken } from "../middleware/auth";
 import { validateSpotifyQueryParams } from "../utils/validation";
-import { handleSpotifyError } from "../utils/errorHandler";
 import { handleTokenRefresh } from "../utils/tokenRefresh";
+import { handleRouteError } from "../utils/routeErrorHandler";
 import {
   SpotifyUser,
   SpotifyTrack,
@@ -76,22 +76,7 @@ router.get("/me", async (req, res) => {
 
     res.json(user);
   } catch (err) {
-    if (
-      err instanceof Error &&
-      err.message === "Spotify access token expired and refresh failed"
-    ) {
-      return res.status(401).json({
-        error: err.message,
-        message: "Please reconnect your Spotify account",
-      });
-    }
-    if (err instanceof Error && err.message.includes("Unauthorized")) {
-      return res
-        .status(401)
-        .json({ error: "Invalid or expired Spotify token" });
-    }
-    console.error("Error in /api/me endpoint:", err);
-    res.status(500).json({ error: "Failed to fetch user profile" });
+    handleRouteError(res, err, "/api/me");
   }
 });
 
@@ -143,22 +128,7 @@ router.get("/top-tracks", async (req, res) => {
 
     res.json(transformedTracks);
   } catch (err) {
-    if (
-      err instanceof Error &&
-      err.message === "Spotify access token expired and refresh failed"
-    ) {
-      return res.status(401).json({
-        error: err.message,
-        message: "Please reconnect your Spotify account",
-      });
-    }
-    if (err instanceof Error && err.message.includes("Unauthorized")) {
-      return res
-        .status(401)
-        .json({ error: "Invalid or expired Spotify token" });
-    }
-    console.error("Error in /api/top-tracks endpoint:", err);
-    res.status(500).json({ error: "Failed to fetch top tracks" });
+    handleRouteError(res, err, "/api/top-tracks");
   }
 });
 
@@ -209,22 +179,7 @@ router.get("/top-artists", async (req, res) => {
 
     res.json(transformedArtists);
   } catch (err) {
-    if (
-      err instanceof Error &&
-      err.message === "Spotify access token expired and refresh failed"
-    ) {
-      return res.status(401).json({
-        error: err.message,
-        message: "Please reconnect your Spotify account",
-      });
-    }
-    if (err instanceof Error && err.message.includes("Unauthorized")) {
-      return res
-        .status(401)
-        .json({ error: "Invalid or expired Spotify token" });
-    }
-    console.error("Error in /api/top-artists endpoint:", err);
-    res.status(500).json({ error: "Failed to fetch top artists" });
+    handleRouteError(res, err, "/api/top-artists");
   }
 });
 
@@ -291,22 +246,7 @@ router.get("/albums", async (req, res) => {
 
     res.json(transformedAlbums);
   } catch (err) {
-    if (
-      err instanceof Error &&
-      err.message === "Spotify access token expired and refresh failed"
-    ) {
-      return res.status(401).json({
-        error: err.message,
-        message: "Please reconnect your Spotify account",
-      });
-    }
-    if (err instanceof Error && err.message.includes("Unauthorized")) {
-      return res
-        .status(401)
-        .json({ error: "Invalid or expired Spotify token" });
-    }
-    console.error("Error in /api/albums endpoint:", err);
-    res.status(500).json({ error: "Failed to fetch albums" });
+    handleRouteError(res, err, "/api/albums");
   }
 });
 
@@ -333,22 +273,7 @@ router.get("/genres", async (req, res) => {
 
     res.json(genresResponse.genres);
   } catch (err) {
-    if (
-      err instanceof Error &&
-      err.message === "Spotify access token expired and refresh failed"
-    ) {
-      return res.status(401).json({
-        error: err.message,
-        message: "Please reconnect your Spotify account",
-      });
-    }
-    if (err instanceof Error && err.message.includes("Unauthorized")) {
-      return res
-        .status(401)
-        .json({ error: "Invalid or expired Spotify token" });
-    }
-    console.error("Error in /api/genres endpoint:", err);
-    res.status(500).json({ error: "Failed to fetch genres" });
+    handleRouteError(res, err, "/api/genres");
   }
 });
 
