@@ -1,8 +1,5 @@
 import { Router, Request, Response } from "express";
-import {
-  getRecentlyPlayed,
-  getAudioFeaturesMultiple,
-} from "../../lib/spotifyClient";
+import { getRecentlyPlayed } from "../../lib/spotifyClient";
 import {
   requireSpotifyAuth,
   SpotifyAuthRequest,
@@ -10,14 +7,8 @@ import {
 import { validateRecentlyPlayedParams } from "../../utils/recentlyPlayedValidation";
 import { handleTokenRefresh } from "../../utils/tokenRefresh";
 import { handleRouteError } from "../../utils/routeErrorHandler";
-import {
-  transformTrack,
-  transformAudioFeatures,
-} from "../../utils/transformers";
-import {
-  SpotifyPlayHistory,
-  SpotifyAudioFeatures,
-} from "../../types/spotify";
+import { transformTrack } from "../../utils/transformers";
+import { SpotifyPlayHistory } from "../../types/spotify";
 
 const router = Router();
 
@@ -43,39 +34,10 @@ router.get(
         (token) => getRecentlyPlayed(token, validation.params)
       );
 
-      // Fetch audio features for all tracks
-      const trackIds = recentlyPlayed.items.map((item) => item.track.id);
-      let audioFeaturesMap: Map<string, SpotifyAudioFeatures> = new Map();
-
-      if (trackIds.length > 0) {
-        try {
-          const audioFeaturesResponse = await handleTokenRefresh(
-            spotifyId || null,
-            accessToken,
-            (token) => getAudioFeaturesMultiple(token, trackIds)
-          );
-
-          audioFeaturesResponse.audio_features.forEach((features) => {
-            if (features) {
-              audioFeaturesMap.set(
-                features.id,
-                transformAudioFeatures(features)
-              );
-            }
-          });
-        } catch (err) {
-          // If audio features fetch fails, continue without them
-          console.error("Error fetching audio features:", err);
-        }
-      }
-
-      // Transform play history items with audio features
+      // Transform play history items
       const transformedItems: SpotifyPlayHistory[] = recentlyPlayed.items.map(
         (item) => ({
-          track: transformTrack(
-            item.track,
-            audioFeaturesMap.get(item.track.id)
-          ),
+          track: transformTrack(item.track),
           played_at: item.played_at,
           context: item.context,
         })

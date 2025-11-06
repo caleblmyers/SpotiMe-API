@@ -1,5 +1,3 @@
-// Spotify API response types
-
 export type TimeRange = "short_term" | "medium_term" | "long_term";
 
 // Full Spotify API response types (what we get from API)
@@ -107,45 +105,6 @@ export interface SpotifyGenresResponse {
   genres: string[];
 }
 
-export interface SpotifyAudioFeaturesResponse {
-  acousticness: number;
-  danceability: number;
-  energy: number;
-  instrumentalness: number;
-  liveness: number;
-  loudness: number;
-  mode: number;
-  speechiness: number;
-  tempo: number;
-  time_signature: number;
-  valence: number;
-  id: string;
-  type: string;
-  uri: string;
-  track_href: string;
-  analysis_url: string;
-  duration_ms: number;
-  key: number;
-}
-
-export interface SpotifyAudioFeaturesResponseArray {
-  audio_features: (SpotifyAudioFeaturesResponse | null)[];
-}
-
-export interface SpotifyRecommendationsSeed {
-  afterFilteringSize: number;
-  afterRelinkingSize: number;
-  href: string | null;
-  id: string;
-  initialPoolSize: number;
-  type: "artist" | "track" | "genre";
-}
-
-export interface SpotifyRecommendationsResponse {
-  seeds: SpotifyRecommendationsSeed[];
-  tracks: SpotifyTrackResponse[];
-}
-
 export interface SpotifyPlayHistoryItem {
   track: SpotifyTrackResponse;
   played_at: string; // ISO 8601 timestamp
@@ -186,20 +145,6 @@ export interface SpotifyUser {
   }>;
 }
 
-export interface SpotifyAudioFeatures {
-  acousticness: number;
-  danceability: number;
-  energy: number;
-  instrumentalness: number;
-  liveness: number;
-  loudness: number;
-  mode: number;
-  speechiness: number;
-  tempo: number;
-  time_signature: number;
-  valence: number;
-}
-
 export interface SpotifyTrack {
   album: {
     id: string;
@@ -222,7 +167,6 @@ export interface SpotifyTrack {
   name: string;
   popularity: number;
   track_number: number;
-  audioFeatures?: SpotifyAudioFeatures;
 }
 
 export interface SpotifyArtist {

@@ -20,8 +20,23 @@ export async function getSpotifyData<T>(
   } catch (error) {
     const axiosError = error as AxiosError<{ error: { message: string; status: number } }>;
     
+    // Log detailed error information for debugging
+    if (axiosError.response) {
+      console.error(`[Spotify API] Error ${axiosError.response.status} for ${url}:`, {
+        status: axiosError.response.status,
+        statusText: axiosError.response.statusText,
+        data: axiosError.response.data,
+        params,
+      });
+    }
+    
     if (axiosError.response?.status === 401) {
       throw new Error("Unauthorized: Invalid or expired access token");
+    }
+    
+    if (axiosError.response?.status === 403) {
+      const errorMessage = axiosError.response?.data?.error?.message || "Forbidden: Insufficient permissions";
+      throw new Error(`403 Forbidden: ${errorMessage}. You may need to re-authenticate with the required scopes.`);
     }
     
     if (axiosError.response?.status === 500) {
