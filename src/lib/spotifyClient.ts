@@ -5,6 +5,8 @@ import {
   SpotifyTrackResponse,
   SpotifyArtistResponse,
   SpotifyAlbumsResponse,
+  SpotifyArtistsResponse,
+  SpotifyTracksResponse,
   SpotifyGenresResponse,
 } from "../types/spotify";
 
@@ -60,6 +62,28 @@ export async function getAlbums(
   return getSpotifyData<SpotifyAlbumsResponse>(
     accessToken,
     "https://api.spotify.com/v1/albums",
+    { ids: ids.join(",") }
+  );
+}
+
+export async function getArtists(
+  accessToken: string,
+  ids: string[]
+): Promise<SpotifyArtistsResponse> {
+  return getSpotifyData<SpotifyArtistsResponse>(
+    accessToken,
+    "https://api.spotify.com/v1/artists",
+    { ids: ids.join(",") }
+  );
+}
+
+export async function getTracks(
+  accessToken: string,
+  ids: string[]
+): Promise<SpotifyTracksResponse> {
+  return getSpotifyData<SpotifyTracksResponse>(
+    accessToken,
+    "https://api.spotify.com/v1/tracks",
     { ids: ids.join(",") }
   );
 }

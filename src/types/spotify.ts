@@ -95,6 +95,14 @@ export interface SpotifyAlbumsResponse {
   albums: SpotifyAlbumResponse[];
 }
 
+export interface SpotifyArtistsResponse {
+  artists: SpotifyArtistResponse[];
+}
+
+export interface SpotifyTracksResponse {
+  tracks: SpotifyTrackResponse[];
+}
+
 export interface SpotifyGenresResponse {
   genres: string[];
 }
