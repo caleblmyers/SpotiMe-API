@@ -142,7 +142,6 @@ router.get("/callback", async (req, res) => {
     const displayName = spotifyProfile.display_name;
     const email = spotifyProfile.email;
     const profileImageUrl = spotifyProfile.images?.[0]?.url;
-    const country = spotifyProfile.country;
     const tokenExpiresAt = new Date(Date.now() + expires_in * 1000);
 
     // Find or create user based on Spotify ID
@@ -155,14 +154,12 @@ router.get("/callback", async (req, res) => {
         displayName: displayName || undefined,
         profileImageUrl: profileImageUrl || undefined,
         email: email || undefined,
-        country: country || undefined,
       },
       create: {
         spotifyId,
         email: email || undefined,
         displayName: displayName || undefined,
         profileImageUrl: profileImageUrl || undefined,
-        country: country || undefined,
         spotifyAccessToken: access_token,
         spotifyRefreshToken: refresh_token,
         spotifyTokenExpiresAt: tokenExpiresAt,
