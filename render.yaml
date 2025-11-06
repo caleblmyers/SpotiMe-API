@@ -17,8 +17,6 @@ services:
         sync: false
       - key: FRONTEND_URL
         value: https://spotime.vercel.app
-      - key: JWT_SECRET
-        sync: false
 
 databases:
   - name: spotime-db
