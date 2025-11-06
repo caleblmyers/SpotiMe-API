@@ -94,20 +94,20 @@ router.get("/callback", async (req, res) => {
   if (error) {
     console.error("Spotify OAuth error:", error);
     return res.redirect(
-      `${process.env.FRONTEND_URL || "http://localhost:5173"}/login?error=${error}`
+      `${process.env.BASE_APP_URL || "http://localhost:5173"}/login?error=${error}`
     );
   }
 
   if (!code) {
     return res.redirect(
-      `${process.env.FRONTEND_URL || "http://localhost:5173"}/login?error=missing_code`
+      `${process.env.BASE_APP_URL || "http://localhost:5173"}/login?error=missing_code`
     );
   }
 
   try {
     if (!clientId || !clientSecret || !redirectUri) {
       return res.redirect(
-        `${process.env.FRONTEND_URL || "http://localhost:5173"}/login?error=oauth_not_configured`
+        `${process.env.BASE_APP_URL || "http://localhost:5173"}/login?error=oauth_not_configured`
       );
     }
 
@@ -170,7 +170,7 @@ router.get("/callback", async (req, res) => {
 
     // Redirect to frontend with tokens in URL hash (for localStorage)
     // Frontend will extract these and store in localStorage, then redirect to dashboard
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const baseAppUrl = process.env.BASE_APP_URL || "http://localhost:5173";
     const tokens = {
       access_token,
       refresh_token,
@@ -185,13 +185,13 @@ router.get("/callback", async (req, res) => {
 
     // Encode tokens as base64 for URL (or use query params)
     const tokensParam = Buffer.from(JSON.stringify(tokens)).toString("base64");
-    res.redirect(`${frontendUrl}/auth/callback?tokens=${encodeURIComponent(tokensParam)}`);
+    res.redirect(`${baseAppUrl}/auth/callback?tokens=${encodeURIComponent(tokensParam)}`);
   } catch (err: unknown) {
     console.error("Error in Spotify callback:", err);
     const axiosError = err as { response?: { data?: { error?: string } } };
     const errorMessage = axiosError.response?.data?.error || "unknown_error";
     res.redirect(
-      `${process.env.FRONTEND_URL || "http://localhost:5173"}/login?error=${errorMessage}`
+      `${process.env.BASE_APP_URL || "http://localhost:5173"}/login?error=${errorMessage}`
     );
   }
 });

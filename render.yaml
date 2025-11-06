@@ -15,7 +15,7 @@ services:
         sync: false
       - key: SPOTIFY_CLIENT_SECRET
         sync: false
-      - key: FRONTEND_URL
+      - key: BASE_APP_URL
         value: https://spotime.vercel.app
 
 databases:
