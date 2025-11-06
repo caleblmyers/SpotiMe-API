@@ -8,6 +8,8 @@ import {
   SpotifyArtistsResponse,
   SpotifyTracksResponse,
   SpotifyGenresResponse,
+  SpotifyAudioFeaturesResponse,
+  SpotifyAudioFeaturesResponseArray,
 } from "../types/spotify";
 
 interface SpotifyTopTracksResponse {
@@ -94,6 +96,27 @@ export async function getGenres(
   return getSpotifyData<SpotifyGenresResponse>(
     accessToken,
     "https://api.spotify.com/v1/recommendations/available-genre-seeds"
+  );
+}
+
+export async function getAudioFeatures(
+  accessToken: string,
+  trackId: string
+): Promise<SpotifyAudioFeaturesResponse> {
+  return getSpotifyData<SpotifyAudioFeaturesResponse>(
+    accessToken,
+    `https://api.spotify.com/v1/audio-features/${trackId}`
+  );
+}
+
+export async function getAudioFeaturesMultiple(
+  accessToken: string,
+  trackIds: string[]
+): Promise<SpotifyAudioFeaturesResponseArray> {
+  return getSpotifyData<SpotifyAudioFeaturesResponseArray>(
+    accessToken,
+    "https://api.spotify.com/v1/audio-features",
+    { ids: trackIds.join(",") }
   );
 }
 

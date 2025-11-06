@@ -107,6 +107,31 @@ export interface SpotifyGenresResponse {
   genres: string[];
 }
 
+export interface SpotifyAudioFeaturesResponse {
+  acousticness: number;
+  danceability: number;
+  energy: number;
+  instrumentalness: number;
+  liveness: number;
+  loudness: number;
+  mode: number;
+  speechiness: number;
+  tempo: number;
+  time_signature: number;
+  valence: number;
+  id: string;
+  type: string;
+  uri: string;
+  track_href: string;
+  analysis_url: string;
+  duration_ms: number;
+  key: number;
+}
+
+export interface SpotifyAudioFeaturesResponseArray {
+  audio_features: (SpotifyAudioFeaturesResponse | null)[];
+}
+
 // Clean response types (what we return to client)
 export interface SpotifyUser {
   id: string;
@@ -123,6 +148,20 @@ export interface SpotifyUser {
     height: number | null;
     width: number | null;
   }>;
+}
+
+export interface SpotifyAudioFeatures {
+  acousticness: number;
+  danceability: number;
+  energy: number;
+  instrumentalness: number;
+  liveness: number;
+  loudness: number;
+  mode: number;
+  speechiness: number;
+  tempo: number;
+  time_signature: number;
+  valence: number;
 }
 
 export interface SpotifyTrack {
@@ -147,6 +186,7 @@ export interface SpotifyTrack {
   name: string;
   popularity: number;
   track_number: number;
+  audioFeatures?: SpotifyAudioFeatures;
 }
 
 export interface SpotifyArtist {

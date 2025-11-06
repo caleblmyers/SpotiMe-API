@@ -3,10 +3,12 @@ import {
   SpotifyTrackResponse,
   SpotifyArtistResponse,
   SpotifyAlbumResponse,
+  SpotifyAudioFeaturesResponse,
   SpotifyUser,
   SpotifyTrack,
   SpotifyArtist,
   SpotifyAlbum,
+  SpotifyAudioFeatures,
 } from "../types/spotify";
 
 /**
@@ -24,10 +26,34 @@ export function transformUser(profile: SpotifyUserResponse): SpotifyUser {
 }
 
 /**
+ * Transform Spotify audio features response to clean audio features object
+ */
+export function transformAudioFeatures(
+  features: SpotifyAudioFeaturesResponse
+): SpotifyAudioFeatures {
+  return {
+    acousticness: features.acousticness,
+    danceability: features.danceability,
+    energy: features.energy,
+    instrumentalness: features.instrumentalness,
+    liveness: features.liveness,
+    loudness: features.loudness,
+    mode: features.mode,
+    speechiness: features.speechiness,
+    tempo: features.tempo,
+    time_signature: features.time_signature,
+    valence: features.valence,
+  };
+}
+
+/**
  * Transform Spotify track response to clean track object
  */
-export function transformTrack(track: SpotifyTrackResponse): SpotifyTrack {
-  return {
+export function transformTrack(
+  track: SpotifyTrackResponse,
+  audioFeatures?: SpotifyAudioFeatures
+): SpotifyTrack {
+  const transformed: SpotifyTrack = {
     album: track.album,
     artists: track.artists,
     duration_ms: track.duration_ms,
@@ -37,6 +63,12 @@ export function transformTrack(track: SpotifyTrackResponse): SpotifyTrack {
     popularity: track.popularity,
     track_number: track.track_number,
   };
+
+  if (audioFeatures) {
+    transformed.audioFeatures = audioFeatures;
+  }
+
+  return transformed;
 }
 
 /**
