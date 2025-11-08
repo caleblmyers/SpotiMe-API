@@ -8,12 +8,15 @@ This is the Express.js backend API that powers the SpotiMe frontend application.
 
 ## Tech Stack
 
-- **Node.js** 22.x
-- **Express.js** - Web framework
-- **TypeScript** - Type safety
-- **Prisma** - ORM for PostgreSQL
-- **PostgreSQL** - Database
-- **Axios** - HTTP client for Spotify API requests
+- Node.js 22.x
+- Express.js
+- TypeScript
+- Prisma
+- PostgreSQL
+- Axios
+- dotenv
+- cookie-parser
+- cors
 
 ## Prerequisites
 
@@ -27,7 +30,7 @@ This is the Express.js backend API that powers the SpotiMe frontend application.
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/caleblmyers/SpotiMe-API.git
 cd spotime-api
 ```
 
@@ -93,14 +96,6 @@ npm run dev
 
 The API will be available at `http://localhost:4000`
 
-## Available Scripts
-
-- `npm run dev` - Start development server with nodemon
-- `npm run build` - Compile TypeScript to JavaScript
-- `npm start` - Start production server
-- `npm run prisma:generate` - Generate Prisma Client
-- `npm run prisma:migrate` - Run database migrations
-
 ## API Endpoints
 
 ### Authentication
@@ -125,38 +120,23 @@ Authorization: Bearer <spotify_access_token>
 - `GET /api/tracks?ids=...` - Get tracks by IDs (comma-separated, max 50)
 - `GET /api/genres` - Get available genre seeds
 
-## Project Structure
-
-```
-src/
-├── index.ts              # Application entry point
-├── lib/
-│   └── spotifyClient.ts  # Spotify API client functions
-├── routes/
-│   ├── api.ts            # Main API router
-│   ├── api/
-│   │   ├── user.ts      # User profile routes
-│   │   ├── albums.ts    # Album routes
-│   │   ├── tracks.ts    # Track routes (top tracks + by IDs)
-│   │   ├── artists.ts   # Artist routes (top artists + by IDs)
-│   │   └── genres.ts    # Genre routes
-│   └── auth.ts          # Authentication routes
-├── middleware/
-│   ├── auth.ts          # Authentication utilities
-│   └── spotifyAuth.ts   # Spotify authentication middleware
-├── utils/
-│   ├── prisma.ts        # Prisma client instance
-│   ├── getSpotifyData.ts # Central Spotify API request utility
-│   ├── tokenRefresh.ts  # Token refresh logic
-│   ├── validation.ts    # Query parameter validation
-│   ├── idValidation.ts  # ID validation utilities
-│   ├── transformers.ts  # Data transformation utilities
-│   └── routeErrorHandler.ts # Centralized error handling
-└── types/
-    └── spotify.ts       # TypeScript interfaces for Spotify API responses
-```
-
 ## License
 
-ISC
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Spotify API Attribution
+
+This project uses the [Spotify Web API](https://developer.spotify.com/documentation/web-api) to fetch user listening data. 
+
+**Important Notes:**
+- All music data, including track information, artist details, album metadata, and user listening statistics, is provided by Spotify.
+- This application is not affiliated with, endorsed by, or sponsored by Spotify.
+- Spotify content is subject to [Spotify's Developer Terms of Service](https://developer.spotify.com/terms).
+- Users must authenticate with their Spotify account to access their personal listening data.
+- All Spotify trademarks, logos, and brand features are the property of Spotify AB.
+
+**Spotify Developer Resources:**
+- [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+- [Spotify Web API Documentation](https://developer.spotify.com/documentation/web-api)
+- [Spotify Developer Terms of Service](https://developer.spotify.com/terms)
 
