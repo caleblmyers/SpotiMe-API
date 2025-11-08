@@ -24,10 +24,10 @@ router.get("/me", requireSpotifyAuth, async (req: Request, res: Response) => {
     // Return only specified fields
     const user: SpotifyUser = transformUser(spotifyProfile);
 
-    // Update database if user exists
-    try {
-      if (spotifyProfile.id) {
-        await prisma.user.upsert({
+    // Update database if user exists (non-blocking - don't wait for DB)
+    if (spotifyProfile.id) {
+      prisma.user
+        .upsert({
           where: { spotifyId: spotifyProfile.id },
           update: {
             displayName: user.display_name || undefined,
@@ -40,11 +40,11 @@ router.get("/me", requireSpotifyAuth, async (req: Request, res: Response) => {
             email: user.email || undefined,
             profileImageUrl: user.images?.[0]?.url || undefined,
           },
+        })
+        .catch((dbError) => {
+          // Log but don't fail the request if DB update fails
+          console.error("Error updating user in database:", dbError);
         });
-      }
-    } catch (dbError) {
-      // Log but don't fail the request if DB update fails
-      console.error("Error updating user in database:", dbError);
     }
 
     res.json(user);

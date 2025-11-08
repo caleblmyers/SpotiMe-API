@@ -8,7 +8,10 @@ import { handleTokenRefresh } from "../../utils/tokenRefresh";
 import { handleRouteError } from "../../utils/routeErrorHandler";
 import { transformPlaylist, transformPlaylistTrack } from "../../utils/transformers";
 import { SpotifyPlaylist, SpotifyPlaylistTrack } from "../../types/spotify";
-import { SPOTIFY_LIMIT_MIN, SPOTIFY_LIMIT_MAX, SPOTIFY_OFFSET_MIN, SPOTIFY_PLAYLIST_TRACKS_LIMIT_MAX } from "../../constants/spotify";
+import {
+  validatePaginationParams,
+  validatePlaylistTracksPaginationParams,
+} from "../../utils/paginationValidation";
 
 const router = Router();
 
@@ -21,36 +24,23 @@ router.get(
       const { accessToken, spotifyId } = req as SpotifyAuthRequest;
 
       // Validate and parse query parameters
-      const limitNum =
-        req.query.limit !== undefined
-          ? parseInt(req.query.limit as string, 10)
-          : 50;
-      const offsetNum =
-        req.query.offset !== undefined
-          ? parseInt(req.query.offset as string, 10)
-          : 0;
+      const validation = validatePaginationParams(
+        req.query.limit,
+        req.query.offset,
+        50
+      );
 
-      if (
-        isNaN(limitNum) ||
-        limitNum < SPOTIFY_LIMIT_MIN ||
-        limitNum > SPOTIFY_LIMIT_MAX
-      ) {
-        return res.status(400).json({
-          error: `Invalid limit. Must be between ${SPOTIFY_LIMIT_MIN} and ${SPOTIFY_LIMIT_MAX}`,
-        });
+      if (!validation.valid || !validation.params) {
+        return res.status(400).json({ error: validation.error });
       }
 
-      if (isNaN(offsetNum) || offsetNum < SPOTIFY_OFFSET_MIN) {
-        return res.status(400).json({
-          error: `Invalid offset. Must be ${SPOTIFY_OFFSET_MIN} or greater`,
-        });
-      }
+      const { limit, offset } = validation.params;
 
       // Fetch user's playlists with automatic token refresh
       const playlistsResponse = await handleTokenRefresh(
         spotifyId || null,
         accessToken,
-        (token) => getUserPlaylists(token, limitNum, offsetNum)
+        (token) => getUserPlaylists(token, limit, offset)
       );
 
       // Transform playlists
@@ -85,36 +75,22 @@ router.get(
       }
 
       // Validate and parse query parameters
-      const limitNum =
-        req.query.limit !== undefined
-          ? parseInt(req.query.limit as string, 10)
-          : 100;
-      const offsetNum =
-        req.query.offset !== undefined
-          ? parseInt(req.query.offset as string, 10)
-          : 0;
+      const validation = validatePlaylistTracksPaginationParams(
+        req.query.limit,
+        req.query.offset
+      );
 
-      if (
-        isNaN(limitNum) ||
-        limitNum < SPOTIFY_LIMIT_MIN ||
-        limitNum > SPOTIFY_PLAYLIST_TRACKS_LIMIT_MAX
-      ) {
-        return res.status(400).json({
-          error: `Invalid limit. Must be between ${SPOTIFY_LIMIT_MIN} and ${SPOTIFY_PLAYLIST_TRACKS_LIMIT_MAX}`,
-        });
+      if (!validation.valid || !validation.params) {
+        return res.status(400).json({ error: validation.error });
       }
 
-      if (isNaN(offsetNum) || offsetNum < SPOTIFY_OFFSET_MIN) {
-        return res.status(400).json({
-          error: `Invalid offset. Must be ${SPOTIFY_OFFSET_MIN} or greater`,
-        });
-      }
+      const { limit, offset } = validation.params;
 
       // Fetch playlist tracks with automatic token refresh
       const tracksResponse = await handleTokenRefresh(
         spotifyId || null,
         accessToken,
-        (token) => getPlaylistTracks(token, playlistId, limitNum, offsetNum)
+        (token) => getPlaylistTracks(token, playlistId, limit, offset)
       );
 
       // Transform playlist tracks
