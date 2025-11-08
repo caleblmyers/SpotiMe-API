@@ -9,6 +9,8 @@ import {
   SpotifyTracksResponse,
   SpotifyGenresResponse,
   SpotifyRecentlyPlayedResponse,
+  SpotifyPlaylistsResponse,
+  SpotifyPlaylistTracksResponse,
 } from "../types/spotify";
 import { RecentlyPlayedParams } from "../utils/recentlyPlayedValidation";
 
@@ -119,6 +121,31 @@ export async function getRecentlyPlayed(
     accessToken,
     "https://api.spotify.com/v1/me/player/recently-played",
     Object.keys(queryParams).length > 0 ? queryParams : undefined
+  );
+}
+
+export async function getUserPlaylists(
+  accessToken: string,
+  limit = 50,
+  offset = 0
+): Promise<SpotifyPlaylistsResponse> {
+  return getSpotifyData<SpotifyPlaylistsResponse>(
+    accessToken,
+    "https://api.spotify.com/v1/me/playlists",
+    { limit, offset }
+  );
+}
+
+export async function getPlaylistTracks(
+  accessToken: string,
+  playlistId: string,
+  limit = 100,
+  offset = 0
+): Promise<SpotifyPlaylistTracksResponse> {
+  return getSpotifyData<SpotifyPlaylistTracksResponse>(
+    accessToken,
+    `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
+    { limit, offset }
   );
 }
 

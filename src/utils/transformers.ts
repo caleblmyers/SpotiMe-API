@@ -3,10 +3,14 @@ import {
   SpotifyTrackResponse,
   SpotifyArtistResponse,
   SpotifyAlbumResponse,
+  SpotifyPlaylistResponse,
+  SpotifyPlaylistTrackItem,
   SpotifyUser,
   SpotifyTrack,
   SpotifyArtist,
   SpotifyAlbum,
+  SpotifyPlaylist,
+  SpotifyPlaylistTrack,
 } from "../types/spotify";
 
 /**
@@ -71,6 +75,36 @@ export function transformAlbum(album: SpotifyAlbumResponse): SpotifyAlbum {
     genres: album.genres,
     label: album.label,
     popularity: album.popularity,
+  };
+}
+
+/**
+ * Transform Spotify playlist response to clean playlist object
+ */
+export function transformPlaylist(playlist: SpotifyPlaylistResponse): SpotifyPlaylist {
+  return {
+    id: playlist.id,
+    name: playlist.name,
+    description: playlist.description,
+    external_urls: playlist.external_urls,
+    images: playlist.images,
+    owner: playlist.owner,
+    public: playlist.public,
+    collaborative: playlist.collaborative,
+    tracks: playlist.tracks,
+    followers: playlist.followers,
+  };
+}
+
+/**
+ * Transform Spotify playlist track item to clean playlist track object
+ */
+export function transformPlaylistTrack(item: SpotifyPlaylistTrackItem): SpotifyPlaylistTrack {
+  return {
+    added_at: item.added_at,
+    added_by: item.added_by,
+    track: item.track ? transformTrack(item.track) : null,
+    is_local: item.is_local,
   };
 }
 

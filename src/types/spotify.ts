@@ -127,6 +127,66 @@ export interface SpotifyRecentlyPlayedResponse {
   } | null;
 }
 
+export interface SpotifyPlaylistResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  external_urls: {
+    spotify: string;
+  };
+  images: Array<{
+    url: string;
+    height: number | null;
+    width: number | null;
+  }>;
+  owner: {
+    id: string;
+    display_name: string | null;
+    external_urls: {
+      spotify: string;
+    };
+  };
+  public: boolean;
+  collaborative: boolean;
+  tracks: {
+    href: string;
+    total: number;
+  };
+  followers: {
+    total: number;
+  };
+}
+
+export interface SpotifyPlaylistsResponse {
+  items: SpotifyPlaylistResponse[];
+  next: string | null;
+  previous: string | null;
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface SpotifyPlaylistTrackItem {
+  added_at: string;
+  added_by: {
+    id: string | null;
+    external_urls: {
+      spotify: string;
+    } | null;
+  } | null;
+  track: SpotifyTrackResponse | null;
+  is_local: boolean;
+}
+
+export interface SpotifyPlaylistTracksResponse {
+  items: SpotifyPlaylistTrackItem[];
+  next: string | null;
+  previous: string | null;
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 // Clean response types (what we return to client)
 export interface SpotifyUser {
   id: string;
@@ -227,5 +287,47 @@ export interface SpotifyPlayHistory {
     } | null;
     uri: string;
   } | null;
+}
+
+export interface SpotifyPlaylist {
+  id: string;
+  name: string;
+  description: string | null;
+  external_urls: {
+    spotify: string;
+  };
+  images: Array<{
+    url: string;
+    height: number | null;
+    width: number | null;
+  }>;
+  owner: {
+    id: string;
+    display_name: string | null;
+    external_urls: {
+      spotify: string;
+    };
+  };
+  public: boolean;
+  collaborative: boolean;
+  tracks: {
+    href: string;
+    total: number;
+  };
+  followers: {
+    total: number;
+  };
+}
+
+export interface SpotifyPlaylistTrack {
+  added_at: string;
+  added_by: {
+    id: string | null;
+    external_urls: {
+      spotify: string;
+    } | null;
+  } | null;
+  track: SpotifyTrack | null;
+  is_local: boolean;
 }
 

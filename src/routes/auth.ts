@@ -64,7 +64,7 @@ router.get("/login-spotify", async (req, res) => {
       return res.status(500).json({ error: "Spotify OAuth not configured" });
     }
 
-    const scope = "user-top-read user-read-recently-played";
+    const scope = "user-top-read user-read-recently-played playlist-read-private playlist-read-collaborative";
     const url =
       "https://accounts.spotify.com/authorize?" +
       new URLSearchParams({
